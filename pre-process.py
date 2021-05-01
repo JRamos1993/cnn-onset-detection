@@ -21,7 +21,7 @@ def list_annotation_files(data_dir):
     ann_dir = join(data_dir, 'annotations', 'onsets')
     return [join(ann_dir, f) for f in sorted(listdir(ann_dir))]
 
-def get_img_from_fig(fig, dpi=180):
+def get_img_from_fig(fig, dpi = 180):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi)
     buf.seek(0)
@@ -30,14 +30,6 @@ def get_img_from_fig(fig, dpi=180):
     img = cv2.imdecode(img_arr, 1)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
-
-def read_img():
-    # Read image
-    img = Image.open('images\\onsets\\A0-F2.png').convert('RGB').resize((80,15))
-    image = np.array(img)
-    print(image.shape)
-    # Output Images
-    img.show()
 
 def main():
     print('Starting script for pre-processing...')
@@ -79,9 +71,6 @@ def main():
                 print('Skipping file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
                 i += 1
                 continue
-            else:
-                # We continue from where we stopped last time
-                f = len(frames) - 1
 
         # Each frame has nearly 93ms of audio
         # t = (frame_size / sample_rate) * 1000 = (4096 / 44100) * 1000

@@ -17,17 +17,9 @@ import matplotlib.pyplot as plt
 from os.path import basename, exists, join, splitext
 from PIL import Image
 from tensorflow import keras
+import tensorflow as tf 
 
-# Some constants
-batch_size = 15
-scores = []
-
-# Load splits information
-splits_dir = join('dataset', 'splits')
-splits_files = [join(splits_dir, f) for f in sorted(listdir(splits_dir))]
-
-fold_no = 1
-for split_file in splits_files:
+def load_split_data(split_file):
     split = np.loadtxt(split_file, dtype=str)
 
     X_train = [] # spectograms
@@ -62,9 +54,13 @@ for split_file in splits_files:
 
     Y_train = np.array(Y_train, dtype=int)
     Y_validation = np.array(Y_validation, dtype=int)
+
     # Y_train = keras.utils.to_categorical(Y_train, 2)
     # Y_validation = keras.utils.to_categorical(Y_validation, 2)
 
+    return X_train, Y_train, X_validation, Y_validation
+
+def get_model():
     # Define model
     model = Sequential()
     model.add(Conv2D(10, (7, 3), input_shape = (15,80,3), padding = 'same', activation = 'relu', data_format='channels_last'))
@@ -78,61 +74,107 @@ for split_file in splits_files:
 
     optimizer = SGD(lr = 0.01, momentum = 0.9, clipvalue = 5)
 
-    model.compile(loss = 'binary_crossentropy', optimizer = optimizer, metrics = ['binary_accuracy'])
-
-    # mca = ModelCheckpoint('models/model_{epoch:03d}.h5', monitor = 'loss', save_best_only = False)
-    # mcb = ModelCheckpoint('models/model_best.h5', monitor = 'loss', save_best_only = True)
-    # mcv = ModelCheckpoint('models/model_best_val.h5', monitor = 'val_loss', save_best_only = True)
-    # es = EarlyStopping(monitor = 'val_loss', min_delta = 1e-4, patience = 20, verbose = False)
-    # tb = TensorBoard(log_dir = 'logs', write_graph = True, write_images = True)
-    # callbacks = [mca, mcb, mcv, es, tb]
+    model.compile(loss = 'binary_crossentropy',
+        optimizer = optimizer,
+        metrics = [
+            tf.keras.metrics.BinaryAccuracy(),
+            tf.keras.metrics.Precision(),
+            tf.keras.metrics.Recall(),
+            # tf.keras.metrics.FalseNegatives(),
+            # tf.keras.metrics.FalsePositives(),
+            # tf.keras.metrics.TrueNegatives(),
+            # tf.keras.metrics.TruePositives(),
+        ]
+    )
 
     # print(model.summary())
 
+    return model
+
+def get_callbacks():
+    mca = ModelCheckpoint('models/model_{epoch:03d}.h5', monitor = 'loss', save_best_only = False)
+    mcb = ModelCheckpoint('models/model_best.h5', monitor = 'loss', save_best_only = True)
+    mcv = ModelCheckpoint('models/model_best_val.h5', monitor = 'val_loss', save_best_only = True)
+    es = EarlyStopping(monitor = 'val_loss', min_delta = 1e-4, patience = 20, verbose = False)
+    tb = TensorBoard(log_dir = 'logs', write_graph = True, write_images = True)
+
+    callbacks = [mca, mcb, mcv, es, tb]
+
+    return callbacks
+
+def train_fold(fold_number, batch_size, X_train, Y_train, X_validation, Y_validation):
     # Generate a print
     print('------------------------------------------------------------------------')
-    print(f'Training for fold {fold_no} ...')
+    print(f'Training for fold {fold_number} ...')
+
+    model = get_model()
 
     history = model.fit(X_train, Y_train,
         batch_size = batch_size,
-        epochs = 10,
+        epochs = 1,
         verbose = 1,
-        # callbacks = callbacks,
-        validation_data=(X_validation, Y_validation),
+        # callbacks = get_callbacks(),
+        validation_data = (X_validation, Y_validation)
     )
 
-    # Evaluate the model with the validation subset
-    results = history.history # model.evaluate(X_validation, Y_validation, verbose = 0)
-    scores.append(results)
+    return history.history
 
-    # Increase fold number
-    fold_no = fold_no + 1
+def evaluate_folds(scores):
+    loss = []
+    binary_accuracy = []
+    precision = []
+    recall = []
 
-loss = []
-binary_accuracy = []
-# val_loss = []
-# val_binary_accuracy = []
-i = 0
+    a = 0
+    for score in scores:
+        loss.append(np.mean(score['loss']))
+        binary_accuracy.append(np.mean(score['binary_accuracy']))
 
-# # == Provide average scores ==
-# print('------------------------------------------------------------------------')
-# print('Score per fold')
-for score in scores:
-    c_loss = np.mean(score['loss'])
-    c_binary_accuracy = np.mean(score['binary_accuracy'])
-    # c_val_loss = np.mean(score['val_loss'])
-    # c_val_binary_accuracy = np.mean(score['val_binary_accuracy'])
+        if a == 0:
+            precision.append(np.sum(score['precision']))
+            recall.append(np.sum(score['recall']))
+        else:
+            precision.append(np.sum(score['precision_' + str(a)]))
+            recall.append(np.sum(score['recall_' + str(a)]))
+        a += 1
 
-    loss.append(c_loss)
-    binary_accuracy.append(c_binary_accuracy)
-    # val_loss.append(c_val_loss)
-    # val_binary_accuracy.append(c_val_binary_accuracy)
+    prec = np.mean(precision)
+    rec = np.mean(recall)
+    f_measure = 2 * prec * rec / (prec + rec)
 
     print('------------------------------------------------------------------------')
-    print(f'> Fold {i+1} - Loss: {c_loss} - Accuracy: {c_binary_accuracy}%')
-    
-print('------------------------------------------------------------------------')
-print('Average scores for all folds:')
-print(f'> Accuracy: {np.mean(binary_accuracy)} (+- {np.std(binary_accuracy)})')
-print(f'> Loss: {np.mean(loss)}')
-print('------------------------------------------------------------------------')
+    print('Average scores for all folds:')
+    print(f'> Accuracy: {np.mean(binary_accuracy)} (+- {np.std(binary_accuracy)})')
+    print(f'> Loss: {np.mean(loss)}')
+    print(f'> Precision: {prec}')
+    print(f'> Recall: {rec}')
+    print(f'> F-Measure: {f_measure}')
+    print('------------------------------------------------------------------------')
+
+def main():
+    # Some constants
+    batch_size = 15
+    scores = []
+
+    # Load splits information
+    splits_dir = join('dataset', 'splits')
+    splits_files = [join(splits_dir, f) for f in sorted(listdir(splits_dir))]
+
+    fold_number = 1
+    for split_file in splits_files:
+        # Load all images associated with the fold
+        (X_train, Y_train, X_validation, Y_validation) = load_split_data(split_file)
+
+        # Train the fold
+        results = train_fold(fold_number, batch_size, X_train, Y_train, X_validation, Y_validation)
+
+        # Save results
+        scores.append(results)
+            
+        fold_number += 1
+
+    # Evalute all results
+    evaluate_folds(scores)
+
+if __name__ == '__main__':
+    main()

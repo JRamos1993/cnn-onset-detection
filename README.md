@@ -10,15 +10,15 @@ https://drive.google.com/file/d/0B-MfhNTg9c5eeDktWUpjeUF3VkU/view?usp=sharing
 There are more than 321 audio files and annotations.
 
 #### Folder structure
-.
-├── dataset
-│   ├── annotations
-│   ├── audio
-│   └── splits
-├── dataset_transformed
-├── logs
-├── models
-└── ...
+    .
+    ├── dataset                     # Contains the Böck Dataset structure
+    │   ├── annotations             # Labels
+    │   ├── audio                   # Audio files in .flac format
+    │   └── splits                  # Splits to use for cross-validation
+    ├── dataset_transformed_cwt     # Contains all the scaleogram images that were converted from the audio files
+    ├── logs                        # Contains logs for Tensorboard
+    ├── models                      # Contains the created kera model(s)
+    └── ...
 
 #### How to use
 1) Install requirements by running: `pip install -r requirements`

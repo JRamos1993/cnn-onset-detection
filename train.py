@@ -15,6 +15,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold
+import tensorflow as tf 
 
 # Some constants
 image_width = 80
@@ -59,7 +60,16 @@ model.add(Dense(1, activation = 'sigmoid'))
 
 optimizer = SGD(lr = 0.01, momentum = 0.9, clipvalue = 5)
 
-model.compile(loss = 'binary_crossentropy', optimizer = optimizer, metrics = ['binary_accuracy'])
+model.compile(loss = 'binary_crossentropy',
+    optimizer = optimizer,
+    metrics = [
+        tf.keras.metrics.BinaryAccuracy(),
+        tf.keras.metrics.FalseNegatives(),
+        tf.keras.metrics.FalsePositives(),
+        tf.keras.metrics.TrueNegatives(),
+        tf.keras.metrics.TruePositives(),
+    ]
+)
 
 mca = ModelCheckpoint('models/model_{epoch:03d}.h5', monitor = 'loss', save_best_only = False)
 mcb = ModelCheckpoint('models/model_best.h5', monitor = 'loss', save_best_only = True)
