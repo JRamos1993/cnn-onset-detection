@@ -15,7 +15,7 @@ There are more than 321 audio files and annotations.
     │   ├── annotations             # Labels
     │   ├── audio                   # Audio files in .flac format
     │   └── splits                  # Splits to use for cross-validation
-    ├── dataset_transformed_cwt     # Contains all the scaleogram images that were converted from the audio files
+    ├── dataset_transformed         # Contains the scaleograms that were converted from the audio files
     ├── logs                        # Contains logs for Tensorboard
     ├── models                      # Contains the created kera model(s)
     └── ...
