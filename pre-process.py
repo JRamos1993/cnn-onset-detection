@@ -46,8 +46,6 @@ def main():
     print('There are ' + str(len(audio_files)) + ' audio files and ' + str(len(ann_files)) + 'annotation files')
 
     i = 0
-    onsets = 0
-    non_onsets = 0
     for audio_file in audio_files:
         file_name = basename(audio_file)
         print('Pre-processing file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
@@ -59,6 +57,8 @@ def main():
         onset_file = ann_files[i]
         onsets = np.loadtxt(onset_file)
         print('Onsets read from ' + onset_file)
+        number_of_onsets = len(onsets)
+        print('There are ' + str(number_of_onsets) + ' onsets')
 
         # Split audio signal into frames of same size
         frames = FramedSignal(sig, frame_size, hop_size = frame_size)
@@ -78,6 +78,7 @@ def main():
         start = 0
         end = t
         f = 0
+        onsets_found_this_file = 0
         for frame in frames:
             # Plot frame
             # plt.plot(frame)
@@ -91,13 +92,12 @@ def main():
             for onset in onsets:
                 if start <= onset and end >= onset:
                     hasOnset = True
+                    onsets_found_this_file += 1
 
             if hasOnset:
                 print('There is an onset within the range: ' + str(start) + ' to ' + str(end) + 'ms')
-                onsets += 1
             else:
                 print('There are no onsets within the range: ' + str(start) + ' to ' + str(end) + 'ms')
-                non_onsets += 1
 
             # Apply CWT
             time = np.arange(frame_size, dtype=np.float16)
@@ -125,10 +125,11 @@ def main():
 
             plt.close()
 
-        i += 1
+        if number_of_onsets != onsets_found_this_file:
+            print('It was supposed to have ' + str(number_of_onsets) + ' onsets. Found '+ str(onsets_found_this_file) + 'instead. Exiting...')
+            exit()
 
-    print('Total of ' + str(i) + ' frames ')
-    print('From which ' + str(onsets) + ' contains onsets and ' + str(non_onsets) + ' do not contain any onset')
+        i += 1
 
 if __name__ == '__main__':
     main()
