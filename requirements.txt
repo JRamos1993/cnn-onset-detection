@@ -1,0 +1,5 @@
+scipy==1.0.0
+matplotlib==2.1.2
+numpy==1.14.1
+Keras==2.1.4
+madmom==0.15.1
