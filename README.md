@@ -10,7 +10,15 @@ https://drive.google.com/file/d/0B-MfhNTg9c5eeDktWUpjeUF3VkU/view?usp=sharing
 There are more than 321 audio files and annotations.
 
 #### Folder structure
-...
+.
+├── dataset
+│   ├── annotations
+│   ├── audio
+│   └── splits
+├── dataset_transformed
+├── logs
+├── models
+└── ...
 
 #### How to use
 1) Install requirements by running: `pip install -r requirements`

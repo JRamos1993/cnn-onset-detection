@@ -11,6 +11,7 @@ from PIL import Image
 import matplotlib.image as mpimg
 import io
 import cv2
+import glob
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -59,9 +60,6 @@ def main():
         file_name = basename(audio_file)
         print('Pre-processing file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
 
-        # TODO check if there is already some images generated, if so, skip file
-        # so I don't pre-process the same thing all over again, and can actually turn pc off...
-
         # Read audio file
         sig = Signal(audio_file, sample_rate = 44100, num_channels = 1)
 
@@ -74,7 +72,19 @@ def main():
         frames = FramedSignal(sig, frame_size, hop_size = frame_size)
         print('There are ' + str(len(frames)) + ' frames')
 
+        # Check if we already generated the correct amount of frames for that file before
+        matching_files = glob.glob('dataset_transformed/' + '*'+ file_name + '*')
+        if len(matching_files) > 0:
+            if len(frames) == len(matching_files):
+                print('Skipping file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
+                i += 1
+                continue
+            else:
+                # We continue from where we stopped last time
+                f = len(frames) - 1
+
         # Each frame has nearly 93ms of audio
+        # t = (frame_size / sample_rate) * 1000 = (4096 / 44100) * 1000
         t = 0.09287981859410431
         start = 0
         end = t
