@@ -27,7 +27,7 @@ A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x
     ├── logs                        # Contains logs for Tensorboard
     ├── models                      # Contains the created keras model(s)
     ├── pre-process.py              # Script to generate scaleograms from audio
-    └── train.py                    # Script to train with cross-validation and evaluate the CNN model with the scaleograms
+    └── train.py                    # Script to train and evaluate the CNN model with the scaleograms
 
 #### How to use
 1) Install all the required packages by running: `pip install -r requirements`.
