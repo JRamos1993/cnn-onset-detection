@@ -15,7 +15,7 @@ Input shape 15x80x3
 
 #### Wavelet transform pre-processing
 Each audio from the dataset is split into frames of ±93ms with no hopping.
-A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x80 is generated and stored into `dataset_transformed` folder.
+A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x80 is generated and stored into `dataset_transformed` folder in .png format.
 
 #### Folder structure
     .

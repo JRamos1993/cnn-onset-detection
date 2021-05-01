@@ -74,7 +74,7 @@ def main():
 
         # Each frame has nearly 93ms of audio
         # t = (frame_size / sample_rate) * 1000 = (4096 / 44100) * 1000
-        t = 0.09287981859410431
+        t = 0.09287981859410431 # seconds
         start = 0
         end = t
         f = 0

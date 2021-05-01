@@ -178,10 +178,10 @@ def main():
     args = parser.parse_args()
 
     # TODO use this
-    req_action.add_argument(
-        '-t', '--train',
-        type = int,
-        help = 'number of models to train, trained and validated with different folds of the same data')
+    # req_action.add_argument(
+    #     '-t', '--train',
+    #     type = int,
+    #     help = 'number of models to train, trained and validated with different folds of the same data')
 
     # Load splits information
     splits_dir = join('dataset', 'splits')
