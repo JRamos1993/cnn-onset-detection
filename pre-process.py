@@ -12,6 +12,7 @@ import matplotlib.image as mpimg
 import io
 import cv2
 import glob
+import pywt
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -30,6 +31,19 @@ def get_img_from_fig(fig, dpi = 180):
     img = cv2.imdecode(img_arr, 1)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     return img
+
+def get_list_of_continuous_wavelets():
+    l = []
+    for name in pywt.wavelist(kind='continuous'):
+        # supress warnings when the wavelet name is missing parameters
+        completion = {
+            'cmor': 'cmor1.5-1.0',
+            'fbsp': 'fbsp1-1.5-1.0',
+            'shan': 'shan1.5-1.0' }
+        if name in completion:
+            name =  completion[name]# supress warning
+        l.append( name+" :\t"+pywt.ContinuousWavelet(name).family_name )
+    return l
 
 def main():
     print('Starting script for pre-processing...')
@@ -102,15 +116,15 @@ def main():
             # Apply CWT
             time = np.arange(frame_size, dtype=np.float16)
             scales = np.arange(1,81) # scaleogram with 80 rows
-            cwt = scg.CWT(time, frame, scales)
+            cwt = scg.CWT(time, frame, scales, wavelet='mexh')
             # print(cwt.coefs.shape)
 
             # Get scaleogram
-            ax = scg.cws(cwt, yaxis='frequency', wavelet='morl', cbar=None)
-            
+            ax = scg.cws(cwt, yaxis='frequency', wavelet='mexh', cbar=None, coi=False)
+
             # Remove axis from image
             plt.subplots_adjust(bottom = 0, top = 1, left = 0, right = 1)
-            # plt.show()
+            plt.show()
 
             # Get image from matplot and process it
             fig = plt.gcf()
