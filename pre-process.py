@@ -69,12 +69,12 @@ def main():
     time = np.arange(frame_size, dtype=np.float16)
     scales = np.arange(1,81) # scaleogram with 80 rows
 
-    print('There are ' + str(len(audio_files)) + ' audio files and ' + str(len(ann_files)) + 'annotation files')
+    print(f'There are {str(len(audio_files))} audio files and {str(len(ann_files))} annotation files')
 
     i = 0
     for audio_file in audio_files:
         file_name = basename(audio_file)
-        print('Pre-processing file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
+        print(f'Pre-processing file {str(i)}/{str(len(audio_files))}: {file_name}')
 
         # Read audio file
         sig = Signal(audio_file, sample_rate, num_channels = 1)
@@ -82,19 +82,19 @@ def main():
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
         onsets = np.loadtxt(onset_file)
-        print('Onsets read from ' + onset_file)
+        print(f'Onsets read from {onset_file}')
         number_of_onsets = len(onsets)
-        print('There are ' + str(number_of_onsets) + ' onsets')
+        print(f'There are {str(number_of_onsets)} onsets')
 
         # Split audio signal into frames of same size
         frames = FramedSignal(sig, frame_size, hop_size = frame_size)
-        print('There are ' + str(len(frames)) + ' frames')
+        print(f'There are {str(len(frames))} frames')
 
         # Check if we already generated the correct amount of frames for that file before
         matching_files = glob.glob('dataset_transformed/' + '*'+ file_name + '*')
         if len(matching_files) > 0:
             if len(frames) == len(matching_files):
-                print('Skipping file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
+                print(f'Skipping file {str(i)}/{str(len(audio_files))}: {file_name}')
                 i += 1
                 continue
 
@@ -118,9 +118,9 @@ def main():
                     onsets_found_this_file += 1
 
             if hasOnset:
-                print('There is an onset within the range: ' + str(start) + ' to ' + str(end) + 'ms')
+                print(f'There is an onset within the range: {str(start)} to {str(end)} ms')
             else:
-                print('There are no onsets within the range: ' + str(start) + ' to ' + str(end) + 'ms')
+                print(f'There are no onsets within the range: {str(start)} to {str(end)} ms')
 
             # Apply CWT
             cwt = scg.CWT(time, frame, scales, wavelet='cmor1.5-1.0')
@@ -140,7 +140,7 @@ def main():
 
             # Remove axis from image
             plt.subplots_adjust(bottom = 0, top = 1, left = 0, right = 1)
-            plt.show()
+            # plt.show()
 
             # Get image from matplot and process it
             fig = plt.gcf()
@@ -149,14 +149,14 @@ def main():
 
             # Save image
             if hasOnset:
-                image.save(onsets_images_dir + '\\' + '1-' + file_name + '-F' + str(f) + '.png')
+                image.save(join(onsets_images_dir, f'1-{file_name}-F{str(f)}.png'))
             else:
-                image.save(non_onsets_images_dir + '\\' + '0-' + file_name + '-F' + str(f) + '.png')
+                image.save(join(onsets_images_dir, f'0-{file_name}-F{str(f)}.png'))
 
             plt.close()
 
         if number_of_onsets != onsets_found_this_file:
-            print('It was supposed to have ' + str(number_of_onsets) + ' onsets. Found '+ str(onsets_found_this_file) + 'instead. Exiting...')
+            print(f'It was supposed to have {str(number_of_onsets)} onsets. Found {str(onsets_found_this_file)} instead. Exiting...')
             exit()
 
         i += 1
