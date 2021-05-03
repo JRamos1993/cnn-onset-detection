@@ -1,5 +1,9 @@
 dataset/**
 dataset_transformed/**
+dataset_transformed_x/**
 dataset_transformed_p/**
 logs/**
+dataset_transformed_resized_on_x_4096/**
+dataset_transformed_resized_on_y_4096/**
 models/**
+dataset_transformed_resized_on_x_1024/**

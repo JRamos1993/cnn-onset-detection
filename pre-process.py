@@ -13,6 +13,12 @@ import io
 import cv2
 import glob
 import pywt
+import librosa
+import librosa.display
+from madmom.audio.filters import MelFilterbank
+from madmom.audio.spectrogram import (FilteredSpectrogram, Spectrogram,
+                                      LogarithmicSpectrogram)
+from madmom.audio.stft import ShortTimeFourierTransform
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -55,7 +61,13 @@ def main():
     dataset_dir = 'dataset'
     audio_files = list_audio_files(dataset_dir)
     ann_files = list_annotation_files(dataset_dir)
-    frame_size = 4096
+    frame_size = 1024
+    sample_rate = 44100
+    t = frame_size / sample_rate
+    # t = 0.09287981859410431 # seconds for frame_size = 4096
+
+    time = np.arange(frame_size, dtype=np.float16)
+    scales = np.arange(1,81) # scaleogram with 80 rows
 
     print('There are ' + str(len(audio_files)) + ' audio files and ' + str(len(ann_files)) + 'annotation files')
 
@@ -65,7 +77,7 @@ def main():
         print('Pre-processing file ' + str(i) + '/' + str(len(audio_files)) + ': ' + file_name)
 
         # Read audio file
-        sig = Signal(audio_file, sample_rate = 44100, num_channels = 1)
+        sig = Signal(audio_file, sample_rate, num_channels = 1)
 
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
@@ -86,9 +98,6 @@ def main():
                 i += 1
                 continue
 
-        # Each frame has nearly 93ms of audio
-        # t = (frame_size / sample_rate) * 1000 = (4096 / 44100) * 1000
-        t = 0.09287981859410431 # seconds
         start = 0
         end = t
         f = 0
@@ -114,13 +123,20 @@ def main():
                 print('There are no onsets within the range: ' + str(start) + ' to ' + str(end) + 'ms')
 
             # Apply CWT
-            time = np.arange(frame_size, dtype=np.float16)
-            scales = np.arange(1,81) # scaleogram with 80 rows
-            cwt = scg.CWT(time, frame, scales, wavelet='mexh')
+            cwt = scg.CWT(time, frame, scales, wavelet='cmor1.5-1.0')
             # print(cwt.coefs.shape)
 
             # Get scaleogram
-            ax = scg.cws(cwt, yaxis='frequency', wavelet='mexh', cbar=None, coi=False)
+            ax = scg.cws(cwt, yaxis = 'frequency', wavelet = 'cmor1.5-1.0', cbar = None, coi = False)
+
+            # ['cgau1 :\tComplex Gaussian wavelets', 'cgau2 :\tComplex Gaussian wavelets', 
+            # 'cgau3 :\tComplex Gaussian wavelets', 'cgau4 :\tComplex Gaussian wavelets', 
+            # 'cgau5 :\tComplex Gaussian wavelets', 'cgau6 :\tComplex Gaussian wavelets', 
+            # 'cgau7 :\tComplex Gaussian wavelets', 'cgau8 :\tComplex Gaussian wavelets', 
+            # 'cmor1.5-1.0 :\tComplex Morlet wavelets', 'fbsp1-1.5-1.0 :\tFrequency B-Spline wavelets',
+            #  'gaus1 :\tGaussian', 'gaus2 :\tGaussian', 'gaus3 :\tGaussian', 'gaus4 :\tGaussian', 
+            #  'gaus5 :\tGaussian', 'gaus6 :\tGaussian', 'gaus7 :\tGaussian', 'gaus8 :\tGaussian', 
+            #  'mexh :\tMexican hat wavelet', 'morl :\tMorlet wavelet', 'shan1.5-1.0 :\tShannon wavelets']
 
             # Remove axis from image
             plt.subplots_adjust(bottom = 0, top = 1, left = 0, right = 1)
@@ -129,7 +145,7 @@ def main():
             # Get image from matplot and process it
             fig = plt.gcf()
             plot_img_np = get_img_from_fig(fig)
-            image = Image.fromarray(plot_img_np).convert('RGB').resize((80,15))
+            image = Image.fromarray(plot_img_np).convert('RGB').resize((15,80))
 
             # Save image
             if hasOnset:

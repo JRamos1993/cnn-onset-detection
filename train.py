@@ -56,7 +56,7 @@ def load_split_data(split_file):
 def get_model():
     # Define model
     model = Sequential()
-    model.add(Conv2D(10, (7, 3), input_shape = (15,80,3), padding = 'same', activation = 'relu', data_format='channels_last'))
+    model.add(Conv2D(10, (7, 3), input_shape = (80,15,3), padding = 'same', activation = 'relu', data_format='channels_last'))
     model.add(MaxPooling2D(pool_size = (1, 3)))
     model.add(Conv2D(20, (3, 3), input_shape = (9, 26, 10), padding = 'valid', activation = 'relu'))
     model.add(MaxPooling2D(pool_size = (1, 3)))
@@ -108,7 +108,7 @@ def train_fold(fold_number, X_train, Y_train, X_validation, Y_validation, epochs
         epochs = epochs,
         validation_data = (X_validation, Y_validation),
         validation_steps = len(X_validation),
-        # callbacks = get_callbacks(),
+        callbacks = get_callbacks(),
     )
 
     return history.history
@@ -175,13 +175,12 @@ def main():
         type = int,
         default = 5,
         help = 'number of epochs to train each model for')
+    parser.add_argument(
+        '-f', '--folds',
+        type = int,
+        default = 8,
+        help = 'number of models to train, trained and validated with different folds of the same data')
     args = parser.parse_args()
-
-    # TODO use this
-    # req_action.add_argument(
-    #     '-t', '--train',
-    #     type = int,
-    #     help = 'number of models to train, trained and validated with different folds of the same data')
 
     # Load splits information
     splits_dir = join('dataset', 'splits')
@@ -192,6 +191,9 @@ def main():
     fold_number = 1
 
     for split_file in splits_files:
+        if fold_number > args.folds:
+            break
+
         # Load all images associated with the fold
         (X_train, Y_train, X_validation, Y_validation) = load_split_data(split_file)
 
