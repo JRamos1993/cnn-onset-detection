@@ -41,7 +41,6 @@ A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x
 4) Run the training script: `python train.py --epochs=10 --folds=8`.
 
 #### TODO's
-- Make possible to run training for less than 8 folds.
 - Refactor code into functions.
 - Make smaller hop-size between frames possible.
 - It should be possible to define frame sizes.
