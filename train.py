@@ -169,11 +169,13 @@ def main():
         '-e', '--epochs',
         type = int,
         default = 5,
+        choices = range(1,200),
         help = 'number of epochs to train each model for')
     parser.add_argument(
         '-f', '--folds',
         type = int,
         default = 8,
+        choices = range(1,9),
         help = 'number of models to train, trained and validated with different folds of the same data')
     args = parser.parse_args()
 
