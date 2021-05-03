@@ -15,11 +15,8 @@ from argparse import ArgumentParser
 def load_split_data(split_file):
     split = np.loadtxt(split_file, dtype=str)
 
-    X_train = [] # spectograms
-    Y_train = [] # labels
-
-    X_validation = [] # spectograms
-    Y_validation = [] # labels
+    train_features, train_labels = [], [] # spectograms
+    validation_features, validation_labels = [], [] # spectograms
 
     # Load all spectograms/labels into train and validation data structures
     dataset = [join('dataset_transformed', f) for f in sorted(listdir('dataset_transformed'))]
@@ -33,25 +30,25 @@ def load_split_data(split_file):
         np_image = np.array(image)
 
         if sample_name_clean in split:
-            X_validation.append(np_image)
-            Y_validation.append(label)
+            validation_features.append(np_image)
+            validation_labels.append(label)
         else:
-            X_train.append(np_image)
-            Y_train.append(label)
+            train_features.append(np_image)
+            train_labels.append(label)
 
     # Post process
-    X_train = np.array(X_train)
-    X_validation = np.array(X_validation)
-    X_train = X_train.astype('float32') / 255.
-    X_validation = X_validation.astype('float32') / 255.
+    train_features = np.array(train_features)
+    validation_features = np.array(validation_features)
+    train_features = train_features.astype('float32') / 255.
+    validation_features = validation_features.astype('float32') / 255.
 
-    Y_train = np.array(Y_train, dtype=int)
-    Y_validation = np.array(Y_validation, dtype=int)
+    train_labels = np.array(train_labels, dtype=int)
+    validation_labels = np.array(validation_labels, dtype=int)
 
-    # Y_train = keras.utils.to_categorical(Y_train, 2)
-    # Y_validation = keras.utils.to_categorical(Y_validation, 2)
+    # train_labels = keras.utils.to_categorical(train_labels, 2)
+    # validation_labels = keras.utils.to_categorical(validation_labels, 2)
 
-    return X_train, Y_train, X_validation, Y_validation
+    return train_features, train_labels, validation_features, validation_labels
 
 def get_model():
     # Define model
@@ -65,19 +62,12 @@ def get_model():
     model.add(Dense(256, activation = 'sigmoid'))
     model.add(Dense(1, activation = 'sigmoid'))
 
-    optimizer = SGD(lr = 0.01, momentum = 0.9, clipvalue = 5)
+    optimizer = SGD(lr = 0.01, momentum = 0.8, clipvalue = 5)
+    # optimizer = Adam(lr = 0.01)
 
     model.compile(loss = 'binary_crossentropy',
         optimizer = optimizer,
-        metrics = [
-            tf.keras.metrics.BinaryAccuracy(),
-            tf.keras.metrics.Precision(),
-            tf.keras.metrics.Recall(),
-            tf.keras.metrics.FalseNegatives(),
-            tf.keras.metrics.FalsePositives(),
-            tf.keras.metrics.TrueNegatives(),
-            tf.keras.metrics.TruePositives(),
-        ]
+        metrics = get_metrics()
     )
 
     # print(model.summary())
@@ -95,70 +85,75 @@ def get_callbacks():
 
     return callbacks
 
-def train_fold(fold_number, X_train, Y_train, X_validation, Y_validation, epochs):
+def get_metrics():
+    # False negatives and false positives are samples that were incorrectly classified
+    # True negatives and true positives are samples that were correctly classified
+    # Accuracy is the percentage of examples correctly classified => true samples/total samples
+    # Precision is the percentage of predicted positives that were correctly classified => true positives/(true positives + false positives)
+    # Recall is the percentage of actual positives that were correctly classified => true positives/(true positives + false negatives)
+    # AUC refers to the Area Under the Curve of a Receiver Operating Characteristic curve (ROC-AUC). This metric is equal to the probability that a classifier will rank a random positive sample higher than a random negative sample.
+    # AUPRC refers to Area Under the Curve of the Precision-Recall Curve. This metric computes precision-recall pairs for different probability thresholds.
+
+    # Accuracy is not a helpful metric for this task. We can do 95%+ accuracy on this task by predicting False all the time...
+
+    return [
+        keras.metrics.TruePositives(name='tp'),
+        keras.metrics.FalsePositives(name='fp'),
+        keras.metrics.TrueNegatives(name='tn'),
+        keras.metrics.FalseNegatives(name='fn'), 
+        keras.metrics.BinaryAccuracy(name='accuracy'),
+        keras.metrics.Precision(name='precision'),
+        keras.metrics.Recall(name='recall'),
+        keras.metrics.AUC(name='auc'),
+        keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
+    ]
+
+def train_fold(fold_number, train_features, train_labels, validation_features, validation_labels, epochs):
     # Generate a print
     print('------------------------------------------------------------------------')
     print(f'Training for fold {fold_number} ...')
 
     model = get_model()
 
-    history = model.fit(X_train, Y_train,
-        steps_per_epoch = len(X_train),
+    # Trick: Because there are not many onset samples, we want extra weight on them
+    # weight_for_0 = (1 / np.count_nonzero(train_labels==0))*(len(train_labels))/2.0 
+    # weight_for_1 = (1 / np.count_nonzero(train_labels==1))*(len(train_labels))/2.0
+    # class_weight = {0: weight_for_0, 1: weight_for_1}
+
+    history = model.fit(train_features, train_labels,
+        steps_per_epoch = len(train_features),
         # initial_epoch = initial_epoch,
+        # batch_size = BATCH_SIZE, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
         epochs = epochs,
-        validation_data = (X_validation, Y_validation),
-        validation_steps = len(X_validation),
+        validation_data = (validation_features, validation_labels),
+        validation_steps = len(validation_features),
         callbacks = get_callbacks(),
+        # class_weight = class_weight # Does not work well on SGD optimizer
     )
 
     return history.history
 
 def evaluate_folds(scores):
-    loss = []
-    binary_accuracy = []
-    precision = []
-    recall = []
+    loss, accuracy, precision, recall, tp, tn, fp, fn = [], [], [], [], [], [], [], []
 
-    tp = []
-    tn = []
-    fp = []
-    fn = []
-
-    a = 0
     for score in scores:
         loss.append(np.mean(score['loss']))
-        binary_accuracy.append(np.mean(score['binary_accuracy']))
-
-        if a == 0:
-            precision.append(np.mean(score['precision']))
-            recall.append(np.mean(score['recall']))
-
-            tp.append(np.mean(score['true_positives']))
-            tn.append(np.mean(score['true_negatives']))
-            fp.append(np.mean(score['false_positives']))
-            fn.append(np.mean(score['false_negatives']))
-        else:
-            precision.append(np.mean(score['precision_' + str(a)]))
-            recall.append(np.mean(score['recall_' + str(a)]))
-
-            tp.append(np.mean(score['true_positives_' + str(a)]))
-            tn.append(np.mean(score['true_negatives_' + str(a)]))
-            fp.append(np.mean(score['false_positives_' + str(a)]))
-            fn.append(np.mean(score['false_negatives_' + str(a)]))
-        a += 1
+        accuracy.append(np.mean(score['accuracy']))
+        precision.append(np.mean(score['precision']))
+        recall.append(np.mean(score['recall']))
+        tp.append(np.mean(score['tp']))
+        tn.append(np.mean(score['tn']))
+        fp.append(np.mean(score['fp']))
+        fn.append(np.mean(score['fn']))
 
     prec = np.mean(precision)
     rec = np.mean(recall)
     f_measure = 2 * prec * rec / (prec + rec)
-
-    tp = np.mean(tp)
-    tn = np.mean(tn)
-    fp = np.mean(fp)
-    fn = np.mean(fn)
+    tp, tn, fp, fn = np.mean(tp), np.mean(tn), np.mean(fp), np.mean(fn)
 
     print('------------------------------------------------------------------------')
     print('Average scores for all folds:')
-    print(f'> Accuracy: {np.mean(binary_accuracy)} (+- {np.std(binary_accuracy)})')
+    print(f'> Accuracy: {np.mean(accuracy)} (+- {np.std(accuracy)})')
     print(f'> Loss: {np.mean(loss)}')
     print(f'> Precision: {prec}')
     print(f'> Recall: {rec}')
@@ -195,10 +190,10 @@ def main():
             break
 
         # Load all images associated with the fold
-        (X_train, Y_train, X_validation, Y_validation) = load_split_data(split_file)
+        (train_features, train_labels, validation_features, validation_labels) = load_split_data(split_file)
 
         # Train the fold
-        results = train_fold(fold_number, X_train, Y_train, X_validation, Y_validation, args.epochs)
+        results = train_fold(fold_number, train_features, train_labels, validation_features, validation_labels, args.epochs)
 
         # Save results to array
         scores.append(results)

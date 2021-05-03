@@ -30,9 +30,10 @@ A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x
     └── train.py                    # Script to train and evaluate the CNN model with the scaleograms
 
 #### How to use
-1) Install all the required packages by running: `pip install -r requirements`.
-2) Run the pre-processing script: `python pre-process.py`.
-3) Run the training script: `python train.py --epochs=10`.
+1) Install Python version 3.8.6.
+2) Install all the dependencies by running: `pip install -r requirements.txt`.
+3) Run the pre-processing script: `python pre-process.py`.
+4) Run the training script: `python train.py --epochs=10 --folds=8`.
 
 #### TODO's
 - Make possible to run training for less than 8 folds.
