@@ -48,6 +48,10 @@ def load_split_data(split_file):
     # train_labels = keras.utils.to_categorical(train_labels, 2)
     # validation_labels = keras.utils.to_categorical(validation_labels, 2)
 
+    # print(np.count_nonzero(train_labels == 0) + np.count_nonzero(validation_labels == 0))
+    # print(np.count_nonzero(train_labels == 1) + np.count_nonzero(validation_labels == 1))
+    # exit()
+
     return train_features, train_labels, validation_features, validation_labels
 
 def get_model():
@@ -123,12 +127,12 @@ def train_fold(fold_number, train_features, train_labels, validation_features, v
     history = model.fit(train_features, train_labels,
         steps_per_epoch = len(train_features),
         # initial_epoch = initial_epoch,
-        # batch_size = BATCH_SIZE, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
+        batch_size = 256, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
         epochs = epochs,
         validation_data = (validation_features, validation_labels),
         validation_steps = len(validation_features),
         callbacks = get_callbacks(),
-        # class_weight = class_weight # Does not work well on SGD optimizer
+        # class_weight = class_weight # Does not work well with SGD optimizer
     )
 
     return history.history
@@ -163,6 +167,9 @@ def evaluate_folds(scores):
     print('------------------------------------------------------------------------')
 
 def main():
+    # See if GPU is being used
+    K.tensorflow_backend._get_available_gpus()
+
     # Argument parsing
     parser = ArgumentParser(description = 'Onset Detection Trainer')
     parser.add_argument(

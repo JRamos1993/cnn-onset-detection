@@ -19,6 +19,7 @@ from madmom.audio.filters import MelFilterbank
 from madmom.audio.spectrogram import (FilteredSpectrogram, Spectrogram,
                                       LogarithmicSpectrogram)
 from madmom.audio.stft import ShortTimeFourierTransform
+from argparse import ArgumentParser
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -52,6 +53,16 @@ def get_list_of_continuous_wavelets():
     return l
 
 def main():
+    # Argument parsing
+    parser = ArgumentParser(description = 'Onset Detection Trainer')
+    parser.add_argument(
+        '-t', '--transformation',
+        type = str,
+        default = 'cwt',
+        choices = ['fft', 'cwt'],
+        help = 'number of epochs to train each model for')
+    args = parser.parse_args()
+
     print('Starting script for pre-processing...')
     # onsets_images_dir = join('dataset_transformed', 'train')# , 'onsets')
     # non_onsets_images_dir = join('dataset_transformed', 'train')# , 'non-onsets')
@@ -74,10 +85,14 @@ def main():
     i = 0
     for audio_file in audio_files:
         file_name = basename(audio_file)
-        print(f'Pre-processing file {str(i)}/{str(len(audio_files))}: {file_name}')
+        print(f'Pre-processing file {str(i+1)}/{str(len(audio_files))}: {file_name}')
 
         # Read audio file
         sig = Signal(audio_file, sample_rate, num_channels = 1)
+
+        # Split audio signal into frames of same size
+        frames = FramedSignal(sig, frame_size, hop_size = frame_size)
+        print(f'There are {str(len(frames))} frames')
 
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
@@ -85,10 +100,6 @@ def main():
         print(f'Onsets read from {onset_file}')
         number_of_onsets = len(onsets)
         print(f'There are {str(number_of_onsets)} onsets')
-
-        # Split audio signal into frames of same size
-        frames = FramedSignal(sig, frame_size, hop_size = frame_size)
-        print(f'There are {str(len(frames))} frames')
 
         # Check if we already generated the correct amount of frames for that file before
         matching_files = glob.glob('dataset_transformed/' + '*'+ file_name + '*')
