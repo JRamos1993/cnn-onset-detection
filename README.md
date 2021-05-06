@@ -1,4 +1,6 @@
-# cnn-onset-detection
+# Onset Detection Using Convolutional Neural Networks
+#### Overview
+... TODO
 
 #### Böck Dataset
 The audio, annotations and splits can be found here:
@@ -13,9 +15,12 @@ There are more than 321 audio files and annotations.
 Input shape 15x80x3
 ... TODO
 
-#### Wavelet transform pre-processing
+#### Wavelet Transform Pre-processing
 Each audio from the dataset is split into frames of ±93ms with no hopping.
 A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x80 is generated and stored into `dataset_transformed` folder in .png format.
+
+#### Other Pre-processings...
+... TODO
 
 #### Folder structure
     .
@@ -29,14 +34,13 @@ A CWT is then applied to each of those frames, and an RGB scaleogram of size 15x
     ├── pre-process.py              # Script to generate scaleograms from audio
     └── train.py                    # Script to train and evaluate the CNN model with the scaleograms
 
-#### How to use
+#### How To Use
 1) Install Python version 3.8.6.
 2) Install all the dependencies by running: `pip install -r requirements.txt`.
 3) Run the pre-processing script: `python pre-process.py`.
 4) Run the training script: `python train.py --epochs=10 --folds=8`.
 
 #### TODO's
-- Make possible to run training for less than 8 folds.
 - Refactor code into functions.
 - Make smaller hop-size between frames possible.
 - It should be possible to define frame sizes.
