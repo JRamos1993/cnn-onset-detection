@@ -167,9 +167,6 @@ def evaluate_folds(scores):
     print('------------------------------------------------------------------------')
 
 def main():
-    # See if GPU is being used
-    K.tensorflow_backend._get_available_gpus()
-
     # Argument parsing
     parser = ArgumentParser(description = 'Onset Detection Trainer')
     parser.add_argument(

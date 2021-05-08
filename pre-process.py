@@ -20,6 +20,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogram, Spectrogram,
                                       LogarithmicSpectrogram)
 from madmom.audio.stft import ShortTimeFourierTransform
 from argparse import ArgumentParser
+from scipy.ndimage.interpolation import rotate
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -52,18 +53,7 @@ def get_list_of_continuous_wavelets():
         l.append( name+" :\t"+pywt.ContinuousWavelet(name).family_name )
     return l
 
-def main():
-    # Argument parsing
-    parser = ArgumentParser(description = 'Onset Detection Trainer')
-    parser.add_argument(
-        '-t', '--transformation',
-        type = str,
-        default = 'cwt',
-        choices = ['fft', 'cwt'],
-        help = 'number of epochs to train each model for')
-    args = parser.parse_args()
-
-    print('Starting script for pre-processing...')
+def pre_process_cwt(onsets_images_dir, non_onsets_images_dir, audio_files, ann_files):
     # onsets_images_dir = join('dataset_transformed', 'train')# , 'onsets')
     # non_onsets_images_dir = join('dataset_transformed', 'train')# , 'non-onsets')
     onsets_images_dir = 'dataset_transformed'
@@ -156,13 +146,11 @@ def main():
             # Get image from matplot and process it
             fig = plt.gcf()
             plot_img_np = get_img_from_fig(fig)
-            image = Image.fromarray(plot_img_np).convert('RGB').resize((15,80))
+            image = Image.fromarray(plot_img_np).convert('RGB').resize((15,80)) # TODO try PIL.Image.LANCZOS
 
             # Save image
-            if hasOnset:
-                image.save(join(onsets_images_dir, f'1-{file_name}-F{str(f)}.png'))
-            else:
-                image.save(join(onsets_images_dir, f'0-{file_name}-F{str(f)}.png'))
+            label = '1' if hasOnset == True else '0'
+            image.save(join(onsets_images_dir, f'{label}-{file_name}-F{str(f)}.png'))
 
             plt.close()
 
@@ -171,6 +159,121 @@ def main():
             exit()
 
         i += 1
+
+def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_files):
+    #frame_sizes = [2048, 1024, 4096]
+    frame_size = 4096
+    sample_rate = 44100
+    t = 0.01
+
+    i = 0
+    for audio_file in audio_files:
+        file_name = basename(audio_file)
+        print(f'Pre-processing file {str(i+1)}/{str(len(audio_files))}: {file_name}')
+
+        # Read audio file
+        sig = Signal(audio_file, sample_rate, num_channels = 1)
+
+        # Read onset annotations for current audio file
+        onset_file = ann_files[i]
+        onsets = np.loadtxt(onset_file)
+        print(f'Onsets read from {onset_file}')
+        number_of_onsets = len(onsets)
+        print(f'There are {str(number_of_onsets)} onsets')
+
+        # Split audio signal into frames of same size
+        frames = FramedSignal(sig, frame_size)
+        print(f'There are {str(len(frames))} frames')
+
+        # Check if we already generated the correct amount of frames for that file before
+        matching_files = glob.glob('dataset_transformed/' + '*'+ file_name + '*')
+        if len(matching_files) > 0:
+            if len(frames) == len(matching_files):
+                print(f'Skipping file {str(i)}/{str(len(audio_files))}: {file_name}')
+                i += 1
+                continue
+
+        start = 0
+        end = t
+        f = 0
+        onsets_found_this_file = 0
+
+        stft = ShortTimeFourierTransform(frames)
+        filt = FilteredSpectrogram(stft,
+                                filterbank = MelFilterbank,
+                                num_bands = 80,
+                                fmin = 27.5, fmax = 16000,
+                                norm_filters = True,
+                                unique_filters = False)
+        log_filt = LogarithmicSpectrogram(filt,
+                                        log = np.log,
+                                        add = np.spacing(1))
+
+        # Pre process np array that contains the spectogram
+        log_filt = rotate(np.array(log_filt, dtype=np.uint8), 90)
+        image = Image.fromarray(log_filt).convert("RGB")
+        # image.save(join(onsets_images_dir, f'zzzz.png'))
+
+        for a in range(log_filt.shape[1]-15):
+            frame = log_filt[:,a:a+15]
+
+            # Check if contains onset
+            start = f * t
+            end = start + t
+            f += 1
+            hasOnset = False
+            for onset in onsets:
+                if start <= onset and end >= onset:
+                    hasOnset = True
+                    onsets_found_this_file += 1
+
+            # if hasOnset:
+            #     print(f'There is an onset within the range: {str(start)} to {str(end)} ms')
+            # else:
+            #     print(f'There are no onsets within the range: {str(start)} to {str(end)} ms')
+
+            image = Image.fromarray(frame).convert("RGB")
+
+            # Save image
+            if hasOnset:
+                image.save(join(onsets_images_dir, f'1-{file_name}-F{str(f)}.png'))
+            else:
+                image.save(join(onsets_images_dir, f'0-{file_name}-F{str(f)}.png'))
+
+        # if number_of_onsets != onsets_found_this_file:
+        #     print(f'It was supposed to have {str(number_of_onsets)} onsets. Found {str(onsets_found_this_file)} instead. Exiting...')
+        #     exit()
+
+        i += 1
+
+def main():
+    # Argument parsing
+    parser = ArgumentParser(description = 'Onset Detection Trainer')
+    parser.add_argument(
+        '-t', '--transformation',
+        type = str,
+        default = 'cwt',
+        choices = ['fft', 'cwt'],
+        help = 'number of epochs to train each model for')
+    args = parser.parse_args()
+
+    print('Starting script for pre-processing...')
+
+    # onsets_images_dir = join('dataset_transformed', 'train')# , 'onsets')
+    # non_onsets_images_dir = join('dataset_transformed', 'train')# , 'non-onsets')
+    onsets_images_dir = 'dataset_transformed'
+    non_onsets_images_dir = 'dataset_transformed'
+    audio_files = list_audio_files('dataset')
+    ann_files = list_annotation_files('dataset')
+    
+    print(f'There are {str(len(audio_files))} audio files and {str(len(ann_files))} annotation files')
+
+    if args.transformation == 'cwt':
+        pre_process_cwt(onsets_images_dir, non_onsets_images_dir, audio_files, ann_files)
+    elif args.transformation == 'fft':
+        pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_files)
+
+    print('Pre-processing done.')
 
 if __name__ == '__main__':
     main()
