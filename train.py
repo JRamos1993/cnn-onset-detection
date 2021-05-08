@@ -11,16 +11,20 @@ from PIL import Image
 from tensorflow import keras
 import tensorflow as tf 
 from argparse import ArgumentParser
+from keras.preprocessing.image import ImageDataGenerator
 
 def load_split_data(split_file):
-    split = np.loadtxt(split_file, dtype=str)
+    split = np.loadtxt(split_file, dtype = str)
 
     train_features, train_labels = [], [] # spectograms
     validation_features, validation_labels = [], [] # spectograms
 
     # Load all spectograms/labels into train and validation data structures
     dataset = [join('dataset_transformed', f) for f in sorted(listdir('dataset_transformed'))]
+    dataset_size = len(dataset)
+    i = 1
     for sample_path in dataset:
+        print(f'Loading file {i}/{dataset_size}')
         sample_file_name_with_extension = basename(sample_path)
         sample_file_name = sample_file_name_with_extension.split('.')[0]
         label = sample_file_name.split('-')[0] # First character is either 1 or 0 => onset or not onset
@@ -29,12 +33,16 @@ def load_split_data(split_file):
         image = Image.open(sample_path)
         np_image = np.array(image)
 
+        # if i > 10000: break
+
         if sample_name_clean in split:
             validation_features.append(np_image)
             validation_labels.append(label)
         else:
             train_features.append(np_image)
             train_labels.append(label)
+
+        i += 1
 
     # Post process
     train_features = np.array(train_features)
@@ -53,6 +61,15 @@ def load_split_data(split_file):
     # exit()
 
     return train_features, train_labels, validation_features, validation_labels
+
+def load_with_keras_generator():
+    datagen = ImageDataGenerator(rescale = 1./255, validation_split = 0.2)
+
+    # load and iterate training dataset
+    train_it = datagen.flow_from_directory('dataset_transformed/', class_mode = 'binary', batch_size = 512, subset='training', target_size=(80, 15))
+    validate_it = datagen.flow_from_directory('dataset_transformed/', class_mode = 'binary', batch_size = 512, subset='validation', target_size=(80, 15))
+
+    return train_it, validate_it
 
 def get_model():
     # Define model
@@ -124,15 +141,39 @@ def train_fold(fold_number, train_features, train_labels, validation_features, v
     # weight_for_1 = (1 / np.count_nonzero(train_labels==1))*(len(train_labels))/2.0
     # class_weight = {0: weight_for_0, 1: weight_for_1}
 
-    history = model.fit(train_features, train_labels,
-        steps_per_epoch = len(train_features),
+    history = model.fit(
+        train_features,
+        train_labels,
+        # steps_per_epoch = len(train_features)//256,
+        # steps_per_epoch = 256 * batch,
         # initial_epoch = initial_epoch,
-        batch_size = 256, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
+        batch_size = 512, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
         epochs = epochs,
         validation_data = (validation_features, validation_labels),
-        validation_steps = len(validation_features),
+        # validation_steps = len(validation_features)//256,
         callbacks = get_callbacks(),
         # class_weight = class_weight # Does not work well with SGD optimizer
+    )
+
+    return history.history
+
+def train_fold_generator(fold_number, train_it, validate_it, epochs):
+    # Generate a print
+    print('------------------------------------------------------------------------')
+    print(f'Training for fold {fold_number} ...')
+
+    model = get_model()
+
+    batch_size = 512
+
+    history = model.fit(
+        train_it,
+        steps_per_epoch = train_it.samples // batch_size,
+        validation_data = validate_it, 
+        validation_steps = validate_it.samples // batch_size,
+        epochs = epochs,
+        callbacks = get_callbacks(),
+        batch_size = batch_size, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
     )
 
     return history.history
@@ -167,13 +208,20 @@ def evaluate_folds(scores):
     print('------------------------------------------------------------------------')
 
 def main():
+    # See if GPU is being used
+    from tensorflow.python.client import device_lib
+    os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices'
+    print(device_lib.list_local_devices())
+    config = tf.compat.v1.ConfigProto(gpu_options=tf.compat.v1.GPUOptions(allow_growth=True))
+    sess = tf.compat.v1.Session(config=config)
+
     # Argument parsing
     parser = ArgumentParser(description = 'Onset Detection Trainer')
     parser.add_argument(
         '-e', '--epochs',
         type = int,
         default = 5,
-        choices = range(1,200),
+        choices = range(1,250),
         help = 'number of epochs to train each model for')
     parser.add_argument(
         '-f', '--folds',
@@ -197,9 +245,11 @@ def main():
 
         # Load all images associated with the fold
         (train_features, train_labels, validation_features, validation_labels) = load_split_data(split_file)
+        # (train_it, validate_it) = load_with_keras_generator()
 
         # Train the fold
         results = train_fold(fold_number, train_features, train_labels, validation_features, validation_labels, args.epochs)
+        # results = train_fold_generator(fold_number, train_it, validate_it, args.epochs)
 
         # Save results to array
         scores.append(results)

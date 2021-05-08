@@ -161,8 +161,7 @@ def pre_process_cwt(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
         i += 1
 
 def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_files):
-    #frame_sizes = [2048, 1024, 4096]
-    frame_size = 4096
+    frame_sizes = [2048, 1024, 4096]
     sample_rate = 44100
     t = 0.01
 
@@ -174,6 +173,20 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
         # Read audio file
         sig = Signal(audio_file, sample_rate, num_channels = 1)
 
+        all_spectograms = []
+        for frame_size in frame_sizes:
+            frames = FramedSignal(sig, frame_size, fps = 100, hop_size = 441)
+            stft = ShortTimeFourierTransform(frames)
+            filt = FilteredSpectrogram(stft, filterbank = MelFilterbank, num_bands = 80, fmin = 27.5, fmax = 16000, norm_filters = True, unique_filters = False)
+            log_filt = LogarithmicSpectrogram(filt, log = np.log, add = np.spacing(1))
+            log_filt = rotate(np.array(log_filt), 90)
+            all_spectograms.append(log_filt.astype(np.uint8))
+
+        # Stack all in different axis
+        final_spectogram = np.dstack(all_spectograms)
+        # image = Image.fromarray((final_spectogram).astype(np.uint8))
+        # image.save(join(onsets_images_dir, f'zzzz.png'))
+
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
         onsets = np.loadtxt(onset_file)
@@ -182,7 +195,7 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
         print(f'There are {str(number_of_onsets)} onsets')
 
         # Split audio signal into frames of same size
-        frames = FramedSignal(sig, frame_size)
+        frames = FramedSignal(sig, frame_size, fps = 100, hop_size = 441)
         print(f'There are {str(len(frames))} frames')
 
         # Check if we already generated the correct amount of frames for that file before
@@ -198,24 +211,8 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
         f = 0
         onsets_found_this_file = 0
 
-        stft = ShortTimeFourierTransform(frames)
-        filt = FilteredSpectrogram(stft,
-                                filterbank = MelFilterbank,
-                                num_bands = 80,
-                                fmin = 27.5, fmax = 16000,
-                                norm_filters = True,
-                                unique_filters = False)
-        log_filt = LogarithmicSpectrogram(filt,
-                                        log = np.log,
-                                        add = np.spacing(1))
-
-        # Pre process np array that contains the spectogram
-        log_filt = rotate(np.array(log_filt, dtype=np.uint8), 90)
-        image = Image.fromarray(log_filt).convert("RGB")
-        # image.save(join(onsets_images_dir, f'zzzz.png'))
-
-        for a in range(log_filt.shape[1]-15):
-            frame = log_filt[:,a:a+15]
+        for a in range(final_spectogram.shape[1]-15):
+            final_frame = final_spectogram[:,a:a+15]
 
             # Check if contains onset
             start = f * t
@@ -227,22 +224,13 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
                     hasOnset = True
                     onsets_found_this_file += 1
 
-            # if hasOnset:
-            #     print(f'There is an onset within the range: {str(start)} to {str(end)} ms')
-            # else:
-            #     print(f'There are no onsets within the range: {str(start)} to {str(end)} ms')
-
-            image = Image.fromarray(frame).convert("RGB")
+            image = Image.fromarray(final_frame)
 
             # Save image
             if hasOnset:
                 image.save(join(onsets_images_dir, f'1-{file_name}-F{str(f)}.png'))
             else:
-                image.save(join(onsets_images_dir, f'0-{file_name}-F{str(f)}.png'))
-
-        # if number_of_onsets != onsets_found_this_file:
-        #     print(f'It was supposed to have {str(number_of_onsets)} onsets. Found {str(onsets_found_this_file)} instead. Exiting...')
-        #     exit()
+                image.save(join(non_onsets_images_dir, f'0-{file_name}-F{str(f)}.png'))
 
         i += 1
 
@@ -254,15 +242,25 @@ def main():
         type = str,
         default = 'cwt',
         choices = ['fft', 'cwt'],
-        help = 'number of epochs to train each model for')
+        help = 'what transformation to use')
+    parser.add_argument(
+        '-fd', '--folder',
+        type = str,
+        default = 'Y',
+        choices = ['Y', 'N'],
+        help = 'place generated images on the same folder')
     args = parser.parse_args()
 
     print('Starting script for pre-processing...')
 
-    # onsets_images_dir = join('dataset_transformed', 'train')# , 'onsets')
-    # non_onsets_images_dir = join('dataset_transformed', 'train')# , 'non-onsets')
-    onsets_images_dir = 'dataset_transformed'
-    non_onsets_images_dir = 'dataset_transformed'
+    if args.folder == 'N':
+        # TODO create dirs
+        onsets_images_dir = join('dataset_transformed', 'onset')# , 'onsets')
+        non_onsets_images_dir = join('dataset_transformed', 'non-onset')# , 'non-onsets')
+    else:
+        onsets_images_dir = 'dataset_transformed'
+        non_onsets_images_dir = 'dataset_transformed'
+
     audio_files = list_audio_files('dataset')
     ann_files = list_annotation_files('dataset')
     
