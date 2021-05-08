@@ -12,6 +12,7 @@ from tensorflow import keras
 import tensorflow as tf 
 from argparse import ArgumentParser
 from keras.preprocessing.image import ImageDataGenerator
+import pre_process as pp
 
 def load_split_data(split_file):
     split = np.loadtxt(split_file, dtype = str)
@@ -244,8 +245,9 @@ def main():
             break
 
         # Load all images associated with the fold
-        (train_features, train_labels, validation_features, validation_labels) = load_split_data(split_file)
+        # (train_features, train_labels, validation_features, validation_labels) = load_split_data(split_file)
         # (train_it, validate_it) = load_with_keras_generator()
+        (train_features, train_labels, validation_features, validation_labels) = pp.get_ffts_dataset(split_file)
 
         # Train the fold
         results = train_fold(fold_number, train_features, train_labels, validation_features, validation_labels, args.epochs)
