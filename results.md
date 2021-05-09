@@ -1,7 +1,9 @@
-Results:
+# Notable results
 
-STFT
-- 25 epochs, 8 folds, 256 batch size, 0.01 learning rate, momentum 0.8, generated dataset on training
+#### Short-Time Fourier Transform
+- 25 epochs, 8 folds, 256 batch size
+- SGD with 0.01 learning rate and 0.8 momentum
+- Dataset came directly from calculations/no images
 Average scores for all folds:
 > Accuracy: 0.856433681845665 (+- 0.0010780587816151643)
 > Loss: 0.31663211509585376
