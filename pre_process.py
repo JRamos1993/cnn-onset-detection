@@ -180,12 +180,11 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
             stft = ShortTimeFourierTransform(frames)
             filt = FilteredSpectrogram(stft, filterbank = MelFilterbank, num_bands = 80, fmin = 27.5, fmax = 16000, norm_filters = True, unique_filters = False)
             log_filt = LogarithmicSpectrogram(filt, log = np.log, add = np.spacing(1))
-            log_filt = rotate(np.array(log_filt), 90)
-            all_spectograms.append(log_filt.astype(np.uint8))
+            all_spectograms.append(log_filt.T.astype(np.uint8))
 
         # Stack all in different axis
         final_spectogram = np.dstack(all_spectograms)
-        # image = Image.fromarray((final_spectogram).astype(np.uint8))
+        # image = Image.fromarray((final_spectogram))
         # image.save(join(onsets_images_dir, f'zzzz.png'))
 
         # Read onset annotations for current audio file
