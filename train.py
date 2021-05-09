@@ -13,6 +13,7 @@ import tensorflow as tf
 from argparse import ArgumentParser
 from keras.preprocessing.image import ImageDataGenerator
 import pre_process as pp
+import math
 
 def load_split_data(split_file):
     split = np.loadtxt(split_file, dtype = str)
@@ -100,7 +101,7 @@ def get_callbacks():
     mca = ModelCheckpoint('models/model_{epoch:03d}.h5', monitor = 'loss', save_best_only = False)
     mcb = ModelCheckpoint('models/model_best.h5', monitor = 'loss', save_best_only = True)
     mcv = ModelCheckpoint('models/model_best_val.h5', monitor = 'val_loss', save_best_only = True)
-    es = EarlyStopping(monitor = 'val_loss', min_delta = 1e-4, patience = 20, verbose = False)
+    es = EarlyStopping(monitor = 'val_loss', min_delta = 1e-4, patience = 20, verbose = True)
     tb = TensorBoard(log_dir = 'logs', write_graph = True, write_images = True)
 
     callbacks = [mca, mcb, mcv, es, tb]
@@ -141,17 +142,13 @@ def train_fold(fold_number, train_features, train_labels, validation_features, v
     # weight_for_0 = (1 / np.count_nonzero(train_labels==0))*(len(train_labels))/2.0 
     # weight_for_1 = (1 / np.count_nonzero(train_labels==1))*(len(train_labels))/2.0
     # class_weight = {0: weight_for_0, 1: weight_for_1}
-
+    
     history = model.fit(
         train_features,
         train_labels,
-        # steps_per_epoch = len(train_features)//256,
-        # steps_per_epoch = 256 * batch,
-        # initial_epoch = initial_epoch,
-        batch_size = 512, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
+        batch_size = 256, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
         epochs = epochs,
         validation_data = (validation_features, validation_labels),
-        # validation_steps = len(validation_features)//256,
         callbacks = get_callbacks(),
         # class_weight = class_weight # Does not work well with SGD optimizer
     )
@@ -174,6 +171,7 @@ def train_fold_generator(fold_number, train_it, validate_it, epochs):
         validation_steps = validate_it.samples // batch_size,
         epochs = epochs,
         callbacks = get_callbacks(),
+        shuffle = True,
         batch_size = batch_size, # Large batch size to to ensure that each batch has a decent chance of containing a few positive samples.
     )
 
@@ -222,7 +220,6 @@ def main():
         '-e', '--epochs',
         type = int,
         default = 5,
-        choices = range(1,250),
         help = 'number of epochs to train each model for')
     parser.add_argument(
         '-f', '--folds',

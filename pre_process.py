@@ -21,7 +21,6 @@ from madmom.audio.spectrogram import (FilteredSpectrogram, Spectrogram,
 from madmom.audio.stft import ShortTimeFourierTransform
 from argparse import ArgumentParser
 from scipy.ndimage.interpolation import rotate
-import ap as zaf
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -207,7 +206,7 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
                 continue
 
         start = 0
-        end = t
+        end = t + 0.14
         f = 0
         onsets_found_this_file = 0
 
@@ -216,13 +215,18 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
 
             # Check if contains onset
             start = f * t
-            end = start + t
+            end = start + t + 0.14
             f += 1
             hasOnset = False
             for onset in onsets:
                 if start <= onset and end >= onset:
                     hasOnset = True
                     onsets_found_this_file += 1
+
+            # if hasOnset:
+            #     print(f'There is an onset within the range: {str(start)} to {str(end)} ms')
+            # else:
+            #     print(f'There are no onsets within the range: {str(start)} to {str(end)} ms')
 
             image = Image.fromarray(final_frame)
 
@@ -363,8 +367,7 @@ def get_ffts_dataset(split_file):
             stft = ShortTimeFourierTransform(frames)
             filt = FilteredSpectrogram(stft, filterbank = MelFilterbank, num_bands = 80, fmin = 27.5, fmax = 16000, norm_filters = True, unique_filters = False)
             log_filt = LogarithmicSpectrogram(filt, log = np.log, add = np.spacing(1))
-            log_filt = rotate(np.array(log_filt), 90)
-            all_spectograms.append(log_filt.astype(np.uint8))
+            all_spectograms.append(log_filt.T.astype(np.uint8))
 
         # Stack all in different axis
         final_spectogram = np.dstack(all_spectograms)
@@ -389,7 +392,7 @@ def get_ffts_dataset(split_file):
                 continue
 
         start = 0
-        end = t
+        end = t + 0.14
         f = 0
         onsets_found_this_file = 0
 
@@ -398,7 +401,7 @@ def get_ffts_dataset(split_file):
 
             # Check if contains onset
             start = f * t
-            end = start + t
+            end = start + t + 0.14
             f += 1
             label = 0
             for onset in onsets:
