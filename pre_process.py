@@ -264,6 +264,7 @@ def get_cqt_dataset(split_file):
         sig = Signal(audio_file, sample_rate, num_channels = 1)
 
         cqt_spectrogram = zaf.cqtspectrogram(sig, 44100, time_resolution, cqt_kernel)
+        # cqt_chromagram = zaf.cqtchromagram(audio_signal, 44100, time_resolution, octave_resolution, cqt_kernel)
 
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
