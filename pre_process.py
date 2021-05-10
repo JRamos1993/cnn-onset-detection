@@ -21,6 +21,7 @@ from madmom.audio.spectrogram import (FilteredSpectrogram, Spectrogram,
 from madmom.audio.stft import ShortTimeFourierTransform
 from argparse import ArgumentParser
 from scipy.ndimage.interpolation import rotate
+import ap as zaf
 
 def list_audio_files(data_dir):
     audio_dir = join(data_dir, 'audio')
@@ -238,54 +239,31 @@ def pre_process_fft(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
 
         i += 1
 
-def pre_process_cqt(onsets_images_dir, non_onsets_images_dir, audio_files, ann_files):
-    frame_sizes = [2048, 1024, 4096]
-    sample_rate = 44100
-    t = 0.01
+def get_cqt_dataset(split_file):
+    audio_files = list_audio_files('dataset')
+    ann_files = list_annotation_files('dataset')
 
-    octave_resolution = 80
+    split = np.loadtxt(split_file, dtype = str)
+
+    sample_rate = 44100
+    octave_resolution = 8.7
     minimum_frequency = 27.5
     maximum_frequency = 16000
-    time_resolution = 80
+    time_resolution = 100
+    cqt_kernel = zaf.cqtkernel(44100, octave_resolution, minimum_frequency, maximum_frequency)
+    t = 0.01
 
     i = 0
+    train_features, train_labels = [], [] # spectograms
+    validation_features, validation_labels = [], [] # spectograms
     for audio_file in audio_files:
         file_name = basename(audio_file)
         print(f'Pre-processing file {str(i+1)}/{str(len(audio_files))}: {file_name}')
 
         # Read audio file
-        # sig = Signal(audio_file, sample_rate, num_channels = 1)
-        y, sr = librosa.load(audio_file)
-        C = librosa.cqt(y,sr=sr,n_bins=80, dtype=np.uint8)
-        # fig, ax = plt.subplots()
-        # img = librosa.display.specshow(librosa.amplitude_to_db(C, ref=np.max),
-                                    # sr=sr, x_axis='time', y_axis='cqt_note', 
-                                    # ax=ax, fmin=minimum_frequency, fmax=maximum_frequency)
-        # ax.set_title('Constant-Q power spectrum')
-        # fig.colorbar(img, ax=ax, format="%+2.0f dB")
-        # plt.show()
-        # plt.subplots_adjust(bottom = 0, top = 1, left = 0, right = 1)
+        sig = Signal(audio_file, sample_rate, num_channels = 1)
 
-        # fig = plt.gcf()
-        # plot_img_np = get_img_from_fig(fig)
-        # image = Image.fromarray(plot_img_np).convert('RGB')#.resize((15,80), Image.LANCZOS)
-        # print(plot_img_np.shape)
-        # image.save(join(onsets_images_dir, f'xxx.png'))
-
-        # exit()
-
-        # print(C.shape)
-        #import skimage.io
-        # min-max scale to fit inside 8-bit range
-        # C = scale_minmax(C, 0, 255).astype(np.uint8)
-        #img = np.flip(img, axis=0) # put low frequencies at the bottom in image
-        #img = 255-img # invert. make black==more energy
-        #skimage.io.imsave('zxc.png', img)
-
-        image = Image.fromarray(C).convert('RGB')
-        image.save(join(onsets_images_dir, f'zzzz.png'))
-
-        exit()
+        cqt_spectrogram = zaf.cqtspectrogram(sig, 44100, time_resolution, cqt_kernel)
 
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
@@ -294,54 +272,46 @@ def pre_process_cqt(onsets_images_dir, non_onsets_images_dir, audio_files, ann_f
         number_of_onsets = len(onsets)
         print(f'There are {str(number_of_onsets)} onsets')
 
-        # Split audio signal into frames of same size
-        frames = FramedSignal(sig, frame_size, fps = 100, hop_size = 441)
-        print(f'There are {str(len(frames))} frames')
-
-        # Check if we already generated the correct amount of frames for that file before
-        matching_files = glob.glob('dataset_transformed/' + '*'+ file_name + '*')
-        if len(matching_files) > 0:
-            if len(frames) == len(matching_files):
-                print(f'Skipping file {str(i)}/{str(len(audio_files))}: {file_name}')
-                i += 1
-                continue
-
         start = 0
-        end = t
+        end = t + 0.14
         f = 0
         onsets_found_this_file = 0
 
-        for a in range(cqt_chromagram.shape[1]-15):
-            final_frame = cqt_chromagram[:,a:a+15]
+        for a in range(cqt_spectrogram.shape[1]-15):
+            frame = cqt_spectrogram[:,a:a+15]
+            rgb_frame = Image.fromarray(frame).convert('RGB')
+            rgb_frame = np.asarray(rgb_frame)
 
             # Check if contains onset
             start = f * t
-            end = start + t
+            end = start + t + 0.14
             f += 1
-            hasOnset = False
+            label = 0
             for onset in onsets:
                 if start <= onset and end >= onset:
-                    hasOnset = True
-                    onsets_found_this_file += 1
+                    label = 1
 
-            image = Image.fromarray(final_frame)
-
-            # Save image
-            if hasOnset:
-                image.save(join(onsets_images_dir, f'1-{file_name}-F{str(f)}.png'))
+            if audio_file in split:
+                validation_features.append(final_frame)
+                validation_labels.append(label)
             else:
-                image.save(join(non_onsets_images_dir, f'0-{file_name}-F{str(f)}.png'))
+                train_features.append(final_frame)
+                train_labels.append(label)
 
         i += 1
 
-def scale_minmax(X, min=0.0, max=1.0):
-    X_std = (X - X.min()) / (X.max() - X.min())
-    X_scaled = X_std * (max - min) + min
-    return X_scaled
+    # Post process
+    train_features = np.array(train_features)
+    validation_features = np.array(validation_features)
+    train_features = train_features.astype('float32') / 255.
+    validation_features = validation_features.astype('float32') / 255.
+
+    train_labels = np.array(train_labels, dtype=int)
+    validation_labels = np.array(validation_labels, dtype=int)
+
+    return train_features, train_labels, validation_features, validation_labels
 
 def get_ffts_dataset(split_file):
-    onsets_images_dir = join('dataset_transformed', 'onset')
-    non_onsets_images_dir = join('dataset_transformed', 'non-onset')
     audio_files = list_audio_files('dataset')
     ann_files = list_annotation_files('dataset')
 
@@ -378,18 +348,6 @@ def get_ffts_dataset(split_file):
         print(f'Onsets read from {onset_file}')
         number_of_onsets = len(onsets)
         print(f'There are {str(number_of_onsets)} onsets')
-
-        # Split audio signal into frames of same size
-        frames = FramedSignal(sig, frame_size, fps = 100, hop_size = 441)
-        print(f'There are {str(len(frames))} frames')
-
-        # Check if we already generated the correct amount of frames for that file before
-        matching_files = glob.glob('dataset_transformed/' + '*'+ file_name + '*')
-        if len(matching_files) > 0:
-            if len(frames) == len(matching_files):
-                print(f'Skipping file {str(i)}/{str(len(audio_files))}: {file_name}')
-                i += 1
-                continue
 
         start = 0
         end = t + 0.14

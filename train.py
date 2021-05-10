@@ -244,7 +244,8 @@ def main():
         # Load all images associated with the fold
         # (train_features, train_labels, validation_features, validation_labels) = load_split_data(split_file)
         # (train_it, validate_it) = load_with_keras_generator()
-        (train_features, train_labels, validation_features, validation_labels) = pp.get_ffts_dataset(split_file)
+        # (train_features, train_labels, validation_features, validation_labels) = pp.get_ffts_dataset(split_file)
+        (train_features, train_labels, validation_features, validation_labels) = pp.get_cqt_dataset(split_file)
 
         # Train the fold
         results = train_fold(fold_number, train_features, train_labels, validation_features, validation_labels, args.epochs)
