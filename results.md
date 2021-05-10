@@ -12,5 +12,5 @@ Precision: 0.8888035136461258\
 Recall: 0.8390212845802307\
 F-Measure: 0.8631952342903\
 True Positives: 274767 True Negatives: 244561\
-False Positives: 34338 False Negatives: 52718\
+False Positives: 34338 False Negatives: 52718
 -----------------------------------------------
