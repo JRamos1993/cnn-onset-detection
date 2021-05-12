@@ -150,6 +150,8 @@ def train_fold(fold_number, train_features, train_labels, validation_features, v
         epochs = epochs,
         validation_data = (validation_features, validation_labels),
         callbacks = get_callbacks(),
+        steps_per_epoch = len(train_labels) // 256,
+        validation_steps = len(validation_labels) // 256
         # class_weight = class_weight # Does not work well with SGD optimizer
     )
 
@@ -244,8 +246,9 @@ def main():
         # Load all images associated with the fold
         # (train_features, train_labels, validation_features, validation_labels) = load_split_data(split_file)
         # (train_it, validate_it) = load_with_keras_generator()
-        # (train_features, train_labels, validation_features, validation_labels) = pp.get_ffts_dataset(split_file)
-        (train_features, train_labels, validation_features, validation_labels) = pp.get_cqt_dataset(split_file)
+        (train_features, train_labels, validation_features, validation_labels) = pp.get_ffts_dataset(split_file)
+        # (train_features, train_labels, validation_features, validation_labels) = pp.get_cqt_dataset(split_file)
+        # (train_features, train_labels, validation_features, validation_labels) = pp.get_cwt_dataset(split_file)
 
         # Train the fold
         results = train_fold(fold_number, train_features, train_labels, validation_features, validation_labels, args.epochs)

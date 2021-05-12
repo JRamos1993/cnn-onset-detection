@@ -246,7 +246,8 @@ def get_cqt_dataset(split_file):
     split = np.loadtxt(split_file, dtype = str)
 
     sample_rate = 44100
-    octave_resolution = 8.7
+    # octave_resolution = 8.7
+    octave_resolution = 80
     minimum_frequency = 27.5
     maximum_frequency = 16000
     time_resolution = 100
@@ -264,7 +265,7 @@ def get_cqt_dataset(split_file):
         sig = Signal(audio_file, sample_rate, num_channels = 1)
 
         cqt_spectrogram = zaf.cqtspectrogram(sig, 44100, time_resolution, cqt_kernel)
-        # cqt_chromagram = zaf.cqtchromagram(audio_signal, 44100, time_resolution, octave_resolution, cqt_kernel)
+        # cqt_spectrogram = zaf.cqtchromagram(sig, 44100, time_resolution, octave_resolution, cqt_kernel)
 
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
@@ -293,10 +294,10 @@ def get_cqt_dataset(split_file):
                     label = 1
 
             if audio_file in split:
-                validation_features.append(final_frame)
+                validation_features.append(rgb_frame)
                 validation_labels.append(label)
             else:
-                train_features.append(final_frame)
+                train_features.append(rgb_frame)
                 train_labels.append(label)
 
         i += 1
@@ -353,19 +354,30 @@ def get_ffts_dataset(split_file):
         start = 0
         end = t + 0.14
         f = 0
-        onsets_found_this_file = 0
-
-        for a in range(final_spectogram.shape[1]-15):
-            final_frame = final_spectogram[:,a:a+15]
+        for a in range(7, final_spectogram.shape[1]-7):
+            final_frame = final_spectogram[:,a-7:a+8] # +8, but numpy does not include the 8th element
 
             # Check if contains onset
             start = f * t
-            end = start + t + 0.14
+            end = start + (t * 15)
             f += 1
             label = 0
+
+            onset_frame_start = start + (t * 5)
+            onset_frame_end = onset_frame_start + (t * 5)
+
+            # if f == 20:
+            # exit()
+
             for onset in onsets:
-                if start <= onset and end >= onset:
+                # if start <= onset and end >= onset:
+                if onset_frame_start <= onset and onset_frame_end >= onset:
                     label = 1
+
+            # if label == 1:
+            # print(f'There is an onset within the range: {str(onset_frame_start)} to {str(onset_frame_end)} ms')
+            # else:
+            # print(f'There are no onsets within the range: {str(onset_frame_start)} to {str(onset_frame_end)} ms')
 
             if audio_file in split:
                 validation_features.append(final_frame)
@@ -375,6 +387,81 @@ def get_ffts_dataset(split_file):
                 train_labels.append(label)
 
         i += 1
+
+    # Post process
+    train_features = np.array(train_features)
+    validation_features = np.array(validation_features)
+    train_features = train_features.astype('float32') / 255.
+    validation_features = validation_features.astype('float32') / 255.
+
+    train_labels = np.array(train_labels, dtype=int)
+    validation_labels = np.array(validation_labels, dtype=int)
+
+    return train_features, train_labels, validation_features, validation_labels
+
+def get_cwt_dataset(split_file):
+    audio_files = list_audio_files('dataset')
+    ann_files = list_annotation_files('dataset')
+
+    split = np.loadtxt(split_file, dtype = str)
+
+    frame_size = 1024
+    sample_rate = 44100
+    t = 0.01
+    time = np.arange(frame_size, dtype=np.float16)
+    scales = np.arange(1,81) # scaleogram with 80 rows
+
+    i = 0
+    train_features, train_labels = [], [] # spectograms
+    validation_features, validation_labels = [], [] # spectograms
+    for audio_file in audio_files:
+        file_name = basename(audio_file)
+        print(f'Pre-processing file {str(i+1)}/{str(len(audio_files))}: {file_name}')
+
+        # Read audio file
+        sig = Signal(audio_file, sample_rate, num_channels = 1)
+
+        frames = FramedSignal(sig, frame_size, hop_size = frame_size/2)
+
+        # Read onset annotations for current audio file
+        onset_file = ann_files[i]
+        onsets = np.loadtxt(onset_file)
+        print(f'Onsets read from {onset_file}')
+        number_of_onsets = len(onsets)
+        print(f'There are {str(number_of_onsets)} onsets')
+
+        start = 0
+        end = t
+        f = 0
+
+        for frame in frames:
+            cwt = scg.CWT(time, frame, scales, wavelet='cmor1.5-1.0')
+            # ax = scg.cws(cwt, yaxis = 'frequency', wavelet = 'cmor1.5-1.0', cbar = None, coi = False)
+            # plt.subplots_adjust(bottom = 0, top = 1, left = 0, right = 1)
+            # fig = plt.gcf()
+            # plot_img_np = get_img_from_fig(fig)
+            rgb_frame = Image.fromarray(cwt.coefs.astype(np.uint8)).convert('RGB').resize((15,80), Image.LANCZOS)
+            rgb_frame = np.asarray(rgb_frame)
+            plt.close()
+
+            # Check if contains onset
+            start = f * t
+            end = start + t
+            f += 1
+            label = 0
+            for onset in onsets:
+                if start <= onset and end >= onset:
+                    label = 1
+
+            if audio_file in split:
+                validation_features.append(rgb_frame)
+                validation_labels.append(label)
+            else:
+                train_features.append(rgb_frame)
+                train_labels.append(label)
+
+        i += 1
+        if i == 10: break
 
     # Post process
     train_features = np.array(train_features)
