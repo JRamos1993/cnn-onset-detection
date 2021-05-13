@@ -12,7 +12,7 @@ F-Measure: 0.9098765289403388\
 True Positives: 294587 True Negatives: 253552\
 False Positives: 25347 False Negatives: 32898\
 -----------------------------------------------
-From here onwards, 5 of the 15 frames are an onset (50ms).\
+- From here onwards, 5 of the 15 frames are an onset (50ms).\
 Same as above, but 100 epochs and considering only 5 of the 15 frames are an onset, bins 100.\
 Accuracy: 0.909080730676651 (+- 0.0)\
 Loss: 0.22308972865343094\
@@ -22,7 +22,7 @@ F-Measure: 0.7790230580094823\
 True Positives: 97306 True Negatives: 453714\
 False Positives: 17633 False Negatives: 37475
 -----------------------------------------------
-Same as above but 80 frequency bins.\
+- Same as above but 80 frequency bins.\
 Accuracy: 0.8913271355628968 (+- 0.0)\
 Loss: 0.27245558977127077\
 Precision: 0.8273037481307983\
@@ -40,7 +40,7 @@ False Positives: 18081 False Negatives: 47824
 
 #### Constant-Q Transform Spectogram
 -----------------------------------------------
-25 epochs, 1 fold, 256 batch size\
+- 25 epochs, 1 fold, 256 batch size\
 SGD with 0.01 learning rate and 0.8 momentum\
 Dataset came directly from calculations/no images\
 Accuracy: 0.877650933265686 (+- 0.0)\
@@ -54,7 +54,7 @@ False Positives: 29287 False Negatives: 44872\
 
 #### Constant-Q Transform Chromagram
 -----------------------------------------------
-25 epochs, 1 fold, 256 batch size\
+- 25 epochs, 1 fold, 256 batch size\
 SGD with 0.01 learning rate and 0.8 momentum\
 Dataset came directly from calculations/no images\
 Accuracy: 0.8420165300369262 (+- 0.0)\
