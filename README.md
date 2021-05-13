@@ -11,7 +11,7 @@ https://drive.google.com/file/d/0B-MfhNTg9c5eeDktWUpjeUF3VkU/view?usp=sharing
 
 321 files with a total of 102 minutes of music annotated with 25,927 onsets.
 #### CNN Architecture
-Input shape 15x80x3
+Input shape 15x80x3\
 ... TODO
 
 #### Short-Time Fourier Spectogram
