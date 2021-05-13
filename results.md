@@ -2,7 +2,7 @@
 
 #### Short-Time Fourier Transform Spectogram
 -----------------------------------------------
-150 epochs, 1 fold, 256 batch size, SGD with 0.01 learning rate and 0.8 momentum, dataset came directly from calculations/no images.\
+- 150 epochs, 1 fold, 256 batch size, SGD with 0.01 learning rate and 0.8 momentum, dataset came directly from calculations/no images.\
 Assumed all 15 frames are an onset... Wrong.\
 Accuracy: 0.9039462347825368 (+- 0.0)\
 Loss: 0.22193499594926835\
