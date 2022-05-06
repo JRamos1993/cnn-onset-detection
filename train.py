@@ -68,25 +68,29 @@ def load_with_keras_generator():
     datagen = ImageDataGenerator(rescale = 1./255, validation_split = 0.2)
 
     # load and iterate training dataset
-    train_it = datagen.flow_from_directory('dataset_transformed/', class_mode = 'binary', batch_size = 512, subset='training', target_size=(80, 15))
-    validate_it = datagen.flow_from_directory('dataset_transformed/', class_mode = 'binary', batch_size = 512, subset='validation', target_size=(80, 15))
+    train_it = datagen.flow_from_directory('dataset_transformed/', class_mode = 'binary', batch_size = 512, subset = 'training', target_size=(80, 15))
+    validate_it = datagen.flow_from_directory('dataset_transformed/', class_mode = 'binary', batch_size = 512, subset = 'validation', target_size=(80, 15))
 
     return train_it, validate_it
 
 def get_model():
     # Define model
     model = Sequential()
-    model.add(Conv2D(10, (7, 3), input_shape = (80,15,3), padding = 'same', activation = 'relu', data_format='channels_last'))
+    model.add(Conv2D(10, (7, 3), input_shape = (80, 15, 3), padding = 'same', activation = 'relu', data_format = 'channels_last'))
     model.add(MaxPooling2D(pool_size = (1, 3)))
     model.add(Conv2D(20, (3, 3), input_shape = (9, 26, 10), padding = 'valid', activation = 'relu'))
     model.add(MaxPooling2D(pool_size = (1, 3)))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.5)) # try dropout after flatten layer, or the first dense layer
     model.add(Flatten())
     model.add(Dense(256, activation = 'sigmoid'))
     model.add(Dense(1, activation = 'sigmoid'))
 
-    optimizer = SGD(lr = 0.01, momentum = 0.8, clipvalue = 5)
+    optimizer = SGD(learning_rate = 0.05, momentum = 0.8, clipvalue = 5)
+    # optimizer = SGD(lr = 0.0001, momentum = 0.8, clipvalue = 5) # try with 10^-3 to 10^-5
     # optimizer = Adam(lr = 0.01)
+
+    # optimizer = RMSprop() # try this
+    # optimizer = Adadelta(lr = 1.0, rho = 0.95, epsilon = 1e-08, decay = 0.0)
 
     model.compile(loss = 'binary_crossentropy',
         optimizer = optimizer,

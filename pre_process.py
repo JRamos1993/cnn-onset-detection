@@ -246,13 +246,13 @@ def get_cqt_dataset(split_file):
     split = np.loadtxt(split_file, dtype = str)
 
     sample_rate = 44100
-    # octave_resolution = 8.7
-    octave_resolution = 80
+    octave_resolution = 8.7
     minimum_frequency = 27.5
     maximum_frequency = 16000
     time_resolution = 100
     cqt_kernel = zaf.cqtkernel(44100, octave_resolution, minimum_frequency, maximum_frequency)
     t = 0.01
+    frame_sizes = [2048, 1024, 4096]
 
     i = 0
     train_features, train_labels = [], [] # spectograms
@@ -264,8 +264,17 @@ def get_cqt_dataset(split_file):
         # Read audio file
         sig = Signal(audio_file, sample_rate, num_channels = 1)
 
-        cqt_spectrogram = zaf.cqtspectrogram(sig, 44100, time_resolution, cqt_kernel)
-        # cqt_spectrogram = zaf.cqtchromagram(sig, 44100, time_resolution, octave_resolution, cqt_kernel)
+        for frame_size in frame_sizes:
+            frames = FramedSignal(sig, frame_size, fps = 100, hop_size = 441)
+
+            for frame in frames:
+                cqt_spectrogram = zaf.cqtspectrogram(sig, 44100, time_resolution, cqt_kernel)
+                # cqt_spectrogram = zaf.cqtchromagram(sig, 44100, time_resolution, octave_resolution, cqt_kernel)
+                # plt.figure(figsize=(17, 10))
+                print(cqt_spectrogram.shape)
+                zaf.cqtspecshow(cqt_spectrogram, time_resolution, octave_resolution, minimum_frequency, xtick_step=1)
+                plt.title("CQT spectrogram (dB)")
+                plt.show()
 
         # Read onset annotations for current audio file
         onset_file = ann_files[i]
@@ -314,6 +323,8 @@ def get_cqt_dataset(split_file):
     return train_features, train_labels, validation_features, validation_labels
 
 def get_ffts_dataset(split_file):
+    print(f'Starting pre-processing')
+
     audio_files = list_audio_files('dataset')
     ann_files = list_annotation_files('dataset')
 
@@ -363,8 +374,8 @@ def get_ffts_dataset(split_file):
             f += 1
             label = 0
 
-            onset_frame_start = start + (t * 5)
-            onset_frame_end = onset_frame_start + (t * 5)
+            onset_frame_start = start + (t * 4)
+            onset_frame_end = onset_frame_start + (t * 6)
 
             # if f == 20:
             # exit()
@@ -379,7 +390,10 @@ def get_ffts_dataset(split_file):
             # else:
             # print(f'There are no onsets within the range: {str(onset_frame_start)} to {str(onset_frame_end)} ms')
 
-            if audio_file in split:
+            # remove extension
+            file_name = file_name.split('.')[0]
+
+            if file_name in split:
                 validation_features.append(final_frame)
                 validation_labels.append(label)
             else:
